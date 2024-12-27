@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cstdlib>
 
-// CUDA kernel for vector addition
 __global__ void VecAdd(float* A, float* B, float* C, int N) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < N) {
@@ -10,28 +9,23 @@ __global__ void VecAdd(float* A, float* B, float* C, int N) {
     }
 }
 
-// Host function to initialize vectors with random values
 void initializeVector(float* vec, int size) {
     for (int i = 0; i < size; i++) {
-        vec[i] = static_cast<float>(rand()) / RAND_MAX; // Random float between 0 and 1
+        vec[i] = static_cast<float>(rand()) / RAND_MAX; 
     }
 }
 
 int main() {
-    // Set the size of the vectors
-    int N = 1024; // Number of elements in each vector
-    size_t size = N * sizeof(float); // Size in bytes
+    int N = 1024; 
+    size_t size = N * sizeof(float); 
 
-    // Allocate memory on the host
     float* h_A = (float*)malloc(size);
     float* h_B = (float*)malloc(size);
     float* h_C = (float*)malloc(size);
 
-    // Initialize input vectors
     initializeVector(h_A, N);
     initializeVector(h_B, N);
 
-    // Allocate memory on the device
     float* d_A; 
     float* d_B; 
     float* d_C;
@@ -51,7 +45,7 @@ int main() {
     bool success = true;
     for (int i = 0; i < N; i++) {
         float expected = h_A[i] + h_B[i];
-        if (fabs(h_C[i] - expected) > 1e-8) { // Allow small numerical errors
+        if (fabs(h_C[i] - expected) > 1e-8) {
             success = false;
             std::cerr << "Error at index " << i << ": expected " << expected << ", got " << h_C[i] << std::endl;
         }
