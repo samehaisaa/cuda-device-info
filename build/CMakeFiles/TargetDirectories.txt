@@ -1,0 +1,3 @@
+/home/sameh/myrepos/cstuff/my_cuda_project/build/CMakeFiles/my_cuda_program.dir
+/home/sameh/myrepos/cstuff/my_cuda_project/build/CMakeFiles/edit_cache.dir
+/home/sameh/myrepos/cstuff/my_cuda_project/build/CMakeFiles/rebuild_cache.dir
