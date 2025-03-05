@@ -2,5 +2,6 @@
 #define KERNEL_H
 
 void kernel_function();
+void print_gpu_info();
 
-#endif // KERNEL_H
+#endif
