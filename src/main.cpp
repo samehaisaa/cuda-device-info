@@ -1,45 +1,71 @@
-#include <opencv2/opencv.hpp>
-#include <cudnn.h>
-
+#include <cuda_runtime.h>
 #include <iostream>
 #include "kernel.h"
-#include <cuda_runtime.h>
-void print_gpu_info() {
-    int device_count = 0;
-    cudaGetDeviceCount(&device_count);
-    if (device_count == 0) {
-        std::cout << "No CUDA devices found!" << std::endl;
-        return;
-    }
-
-    for (int i = 0; i < device_count; ++i) {
-        cudaDeviceProp device_prop;
-        cudaGetDeviceProperties(&device_prop, i);
-
-        std::cout << "Device " << i << ": " << device_prop.name << std::endl;
-        std::cout << "  Compute capability: " << device_prop.major << "." << device_prop.minor << std::endl;
-        std::cout << "  Total global memory: " << device_prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
-        std::cout << "  Shared memory per block: " << device_prop.sharedMemPerBlock / 1024 << " KB" << std::endl;
-        std::cout << "  Number of multiprocessors: " << device_prop.multiProcessorCount << std::endl;
-        std::cout << "  Max threads per block: " << device_prop.maxThreadsPerBlock << std::endl;
-        std::cout << "  Max block dimensions: (" 
-                  << device_prop.maxThreadsDim[0] << ", "
-                  << device_prop.maxThreadsDim[1] << ", "
-                  << device_prop.maxThreadsDim[2] << ")" << std::endl;
-        std::cout << "  Max grid dimensions: (" 
-                  << device_prop.maxGridSize[0] << ", "
-                  << device_prop.maxGridSize[1] << ", "
-                  << device_prop.maxGridSize[2] << ")" << std::endl;
-    }
-}
+#include "../matrix_ops/matrix_ops.h"
+#include "../utilities/matrix_utils.h"
+#include "../vector_addition/vec_add.h"
 
 int main() {
     std::cout << "Starting CUDA program..." << std::endl;
     
-    // Print GPU information
     print_gpu_info();
     
-    kernel_function();  // Call the kernel function
+    kernel_function();
+
+    std::cout << "\n=== Matrix Multiplication Demo ===" << std::endl;
+    const int M = 64;  // rows of A
+    const int N = 32;  // cols of A, rows of B
+    const int K = 16;  // cols of B
+
+    float* A = new float[M * N];
+    float* B = new float[N * K];
+    float* C = new float[M * K];
+
+    initialize_matrix(A, M, N);
+    initialize_matrix(B, N, K);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    cudaEventRecord(start);
+    matrix_multiply(A, B, C, M, N, K);
+    cudaEventRecord(stop);
+    
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    
+    std::cout << "Matrix multiplication time: " << milliseconds << " ms" << std::endl;
+    verify_matrix_multiplication(A, B, C, M, N, K);
+
+    std::cout << "\n=== Vector Addition Demo ===" << std::endl;
+    const int vectorSize = 1024;
+    float* vec1 = new float[vectorSize];
+    float* vec2 = new float[vectorSize];
+    float* result = new float[vectorSize];
+
+    initializeVector(vec1, vectorSize);
+    initializeVector(vec2, vectorSize);
+
+    cudaEventRecord(start);
+    vector_add(vec1, vec2, result, vectorSize);
+    cudaEventRecord(stop);
+    
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    
+    std::cout << "Vector addition time: " << milliseconds << " ms" << std::endl;
+    verify_vector_addition(vec1, vec2, result, vectorSize);
+
+    delete[] A;
+    delete[] B;
+    delete[] C;
+    delete[] vec1;
+    delete[] vec2;
+    delete[] result;
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     return 0;
 }
