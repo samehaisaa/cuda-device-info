@@ -1,8 +1,5 @@
-#include <cuda_runtime.h>
 #include <iostream>
 #include "matrix_ops.h"
-
-#define BLOCK_SIZE 16
 
 __global__ void MatrixMulKernel(float* A, float* B, float* C, int M, int N, int K) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -19,26 +16,30 @@ __global__ void MatrixMulKernel(float* A, float* B, float* C, int M, int N, int 
 
 void matrix_multiply(float* A, float* B, float* C, int M, int N, int K) {
     float *d_A, *d_B, *d_C;
-    size_t size_A = M * N * sizeof(float);
-    size_t size_B = N * K * sizeof(float);
-    size_t size_C = M * K * sizeof(float);
+    cudaMalloc(&d_A, M * N * sizeof(float));
+    cudaMalloc(&d_B, N * K * sizeof(float));
+    cudaMalloc(&d_C, M * K * sizeof(float));
 
-    cudaMalloc(&d_A, size_A);
-    cudaMalloc(&d_B, size_B);
-    cudaMalloc(&d_C, size_C);
+    cudaMemcpy(d_A, A, M * N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, N * K * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(d_A, A, size_A, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, B, size_B, cudaMemcpyHostToDevice);
+    dim3 threadsPerBlock(16, 16);
+    dim3 blocksPerGrid((K + threadsPerBlock.x - 1) / threadsPerBlock.x, (M + threadsPerBlock.y - 1) / threadsPerBlock.y);
+    MatrixMulKernel<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, M, N, K);
 
-    dim3 threadsPerBlock(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 numBlocks((K + BLOCK_SIZE - 1) / BLOCK_SIZE, 
-                   (M + BLOCK_SIZE - 1) / BLOCK_SIZE);
-
-    MatrixMulKernel<<<numBlocks, threadsPerBlock>>>(d_A, d_B, d_C, M, N, K);
-    
-    cudaMemcpy(C, d_C, size_C, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C, d_C, M * K * sizeof(float), cudaMemcpyDeviceToHost);
 
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
+}
+
+void print_matrix(float* matrix, int rows, int cols, const char* name) {
+    std::cout << "Matrix " << name << " (" << rows << "x" << cols << "):" << std::endl;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            std::cout << matrix[i * cols + j] << " ";
+        }
+        std::cout << std::endl;
+    }
 }
