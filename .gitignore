@@ -1,0 +1,20 @@
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+
+/.vscode/
+
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.out
+
+*.ptx
+*.cubin
+
+# Ignore logs an temporary files
+*.log
+*.tmp
