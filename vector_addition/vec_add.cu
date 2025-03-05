@@ -1,65 +1,45 @@
-#include <cuda_runtime.h>
 #include <iostream>
-#include <cstdlib>
+#include <cuda_runtime.h>
 
-// Include the utility functions
-#include "../utilities/utils.cu"
-
-__global__ void VecAdd(float* A, float* B, float* C, int N) {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
+__global__ void VecAddKernel(float* A, float* B, float* C, int N) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N) {
         C[i] = A[i] + B[i];
     }
 }
 
-void checkCudaError(cudaError_t err, const char* msg) {
-    if (err != cudaSuccess) {
-        std::cerr << "Error: " << msg << " (" << cudaGetErrorString(err) << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
-int main() {
-    int N = 1024; 
-    size_t size = N * sizeof(float); 
-
-    float* h_A = (float*)malloc(size);
-    float* h_B = (float*)malloc(size);
-    float* h_C = (float*)malloc(size);
-
-    initializeVector(h_A, N);
-    initializeVector(h_B, N);
-
+void vector_add(float* A, float* B, float* C, int N) {
     float *d_A, *d_B, *d_C;
-    checkCudaError(cudaMalloc((void**)&d_A, size), "Failed to allocate device memory for A");
-    checkCudaError(cudaMalloc((void**)&d_B, size), "Failed to allocate device memory for B");
-    checkCudaError(cudaMalloc((void**)&d_C, size), "Failed to allocate device memory for C");
+    cudaMalloc(&d_A, N * sizeof(float));
+    cudaMalloc(&d_B, N * sizeof(float));
+    cudaMalloc(&d_C, N * sizeof(float));
 
-    checkCudaError(cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice), "Failed to copy A to device");
-    checkCudaError(cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice), "Failed to copy B to device");
+    cudaMemcpy(d_A, A, N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, N * sizeof(float), cudaMemcpyHostToDevice);
 
     int threadsPerBlock = 256;
     int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
-    VecAdd<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
-    checkCudaError(cudaGetLastError(), "Kernel launch failed");
-    checkCudaError(cudaDeviceSynchronize(), "Kernel execution failed");
+    VecAddKernel<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
 
-    checkCudaError(cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost), "Failed to copy C to host");
+    cudaMemcpy(C, d_C, N * sizeof(float), cudaMemcpyDeviceToHost);
 
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+}
+
+void initializeVector(float* vec, int size) {
+    for (int i = 0; i < size; i++) {
+        vec[i] = static_cast<float>(rand()) / RAND_MAX;
+    }
+}
+
+void verify_vector_addition(float* A, float* B, float* C, int N) {
     for (int i = 0; i < N; i++) {
-        if (fabs(h_C[i] - (h_A[i] + h_B[i])) > 1e-5) {
-            std::cerr << "Result verification failed at element " << i << std::endl;
-            exit(EXIT_FAILURE);
+        if (fabs(C[i] - (A[i] + B[i])) > 1e-5) {
+            std::cerr << "Verification failed at index " << i << std::endl;
+            return;
         }
     }
-    std::cout << "Test PASSED" << std::endl;
-
-    free(h_A);
-    free(h_B);
-    free(h_C);
-    checkCudaError(cudaFree(d_A), "Failed to free device memory for A");
-    checkCudaError(cudaFree(d_B), "Failed to free device memory for B");
-    checkCudaError(cudaFree(d_C), "Failed to free device memory for C");
-
-    return 0;
+    std::cout << "Vector addition verification passed!" << std::endl;
 }
