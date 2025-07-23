@@ -1,1 +1,0 @@
-/usr/bin/g++ -g CMakeFiles/my_cuda_program.dir/src/main.cpp.o -o my_cuda_program  /usr/local/cuda-12.6/lib64/libcudart_static.a -ldl /usr/lib/x86_64-linux-gnu/librt.a 
